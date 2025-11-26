@@ -41,6 +41,13 @@ uploads/*
 
 # Prisma
 prisma/migrations/
+prisma/*.js
+prisma/*.js.map
+prisma/*.d.ts.map
+
+# Server files
+server.pid
+server.log
 
 # Misc
 *.tsbuildinfo
