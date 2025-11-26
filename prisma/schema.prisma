@@ -1,0 +1,153 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(CUSTOMER)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  ownedStores      Store[]         @relation("StoreOwner")
+  rentalRequests   RentalRequest[]
+  refreshTokens    RefreshToken[]
+
+  @@map("users")
+}
+
+model Store {
+  id        String   @id @default(uuid())
+  ownerId   String   @map("owner_id")
+  name      String
+  location  String
+  latitude  Float?
+  longitude Float?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  owner    User      @relation("StoreOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  vehicles Vehicle[]
+
+  @@map("stores")
+}
+
+model Vehicle {
+  id          String   @id @default(uuid())
+  storeId     String   @map("store_id")
+  title       String
+  description String?
+  rentPerDay  Decimal  @map("rent_per_day") @db.Decimal(10, 2)
+  rentPerMonth Decimal @map("rent_per_month") @db.Decimal(10, 2)
+  isAvailable Boolean  @default(true) @map("is_available")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  store          Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  images         VehicleImage[]
+  rentalRequests RentalRequest[]
+
+  @@map("vehicles")
+}
+
+model VehicleImage {
+  id        String   @id @default(uuid())
+  vehicleId String   @map("vehicle_id")
+  imageUrl  String   @map("image_url")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@map("vehicle_images")
+}
+
+model RentalRequest {
+  id          String        @id @default(uuid())
+  vehicleId   String        @map("vehicle_id")
+  customerId  String        @map("customer_id")
+  startDate   DateTime      @map("start_date")
+  endDate     DateTime      @map("end_date")
+  totalAmount Decimal       @map("total_amount") @db.Decimal(10, 2)
+  status      RentalStatus  @default(PENDING)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  vehicle Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  customer User     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  payment  Payment?
+
+  @@map("rental_requests")
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  rentalRequestId String        @unique @map("rental_request_id")
+  amount          Decimal       @db.Decimal(10, 2)
+  method          PaymentMethod @default(MOCK)
+  receiptUrl      String?       @map("receipt_url")
+  status          PaymentStatus @default(PENDING)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  rentalRequest RentalRequest @relation(fields: [rentalRequestId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+enum UserRole {
+  CUSTOMER
+  OWNER
+}
+
+enum RentalStatus {
+  PENDING
+  APPROVED
+  CANCELLED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum PaymentMethod {
+  CARD
+  UPI
+  CASH
+  MOCK
+}
+
+
